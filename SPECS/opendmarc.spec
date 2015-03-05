@@ -1,4 +1,5 @@
 # SystemV-compatible version
+# When building for EL5: rpmbuild --nodeps -bs --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" opendmarc.spec
 
 Summary: A Domain-based Message Authentication, Reporting & Conformance (DMARC) milter and library
 Name: opendmarc
@@ -79,10 +80,36 @@ rm -rf %{buildroot}
 
 make DESTDIR=%{buildroot} install %{?_smp_mflags} %{LIBTOOL}
 mkdir -p %{buildroot}%{_sysconfdir}
+install -d %{buildroot}%{_sysconfdir}/sysconfig
 mkdir -p %{buildroot}%{_initrddir}
+#install -d -m 0755 %{buildroot}%{_unitdir}
 install -m 0755 contrib/init/redhat/%{name} %{buildroot}%{_initrddir}/%{name}
-install -m 0644 opendmarc/%{name}.conf.sample %{buildroot}%{_sysconfdir}/%{name}.conf
+install -m 0644 %{name}/%{name}.conf.sample %{buildroot}%{_sysconfdir}/%{name}.conf
 mkdir -p -m 0755 %{buildroot}%{_sysconfdir}/%{name}
+
+cat > %{buildroot}%{_sysconfdir}/sysconfig/%{name} << 'EOF'
+# Set the necessary startup options
+OPTIONS="-c %{_sysconfdir}/%{name}.conf -P %{_localstatedir}/run/%{name}/%{name}.pid"
+EOF
+
+#cat > %{buildroot}%{_unitdir}/%{name}.service << 'EOF'
+#[Unit]
+#Description=Domain-based Message Authentication, Reporting & Conformance (DMARC) Milter
+#Documentation=man:opendmarc(8) man:opendmarc.conf(5) man:opendmarc-import(8) man:opendmarc-reports(8) http://www.trusteddomain.org/opendmarc/
+#After=network.target nss-lookup.target syslog.target
+#
+#[Service]
+#Type=forking
+#PIDFile=/var/run/opendmarc/opendmarc.pid
+#EnvironmentFile=-/etc/sysconfig/opendmarc
+#ExecStart=/usr/sbin/opendmarc $OPTIONS
+#ExecReload=/bin/kill -USR1 $MAINPID
+#User=opendmarc
+#Group=opendmarc
+#
+#[Install]
+#WantedBy=multi-user.target
+#EOF
 
 # Set some basic settings in the default config file
 sed -i 's|^# HistoryFile /var/run/opendmarc.dat|HistoryFile %{_localstatedir}/spool/%{name}/%{name}.dat|' %{buildroot}%{_sysconfdir}/%{name}.conf
@@ -93,7 +120,6 @@ sed -i 's|^# UserID  opendmarc|UserID  opendmarc:mail|' %{buildroot}%{_sysconfdi
 sed -i 's|^# SPFIgnoreResults false|SPFIgnoreResults true|' %{buildroot}%{_sysconfdir}/%{name}.conf
 sed -i 's|^# SPFSelfValidate false|SPFSelfValidate true|' %{buildroot}%{_sysconfdir}/%{name}.conf
 sed -i 's|/usr/local||' %{buildroot}%{_sysconfdir}/%{name}.conf
-
 
 install -p -d %{buildroot}%{_sysconfdir}/tmpfiles.d
 cat > %{buildroot}%{_sysconfdir}/tmpfiles.d/%{name}.conf <<EOF
@@ -120,11 +146,28 @@ getent passwd %{name} >/dev/null || \
 exit 0
 
 %post
+# Initial installation
+
+#Uncomment for systemd:
+#if [ $1 -eq 1 ] ; then 
+#    /bin/systemctl enable %{name}.service >/dev/null 2>&1 || :
+#fi
+
+#Uncomment for SysV:
 /sbin/chkconfig --add %{name} || :
 
 %post -n libopendmarc -p /sbin/ldconfig
 
 %preun
+# Package removal, not upgrade
+
+#Uncomment for systemd:
+#if [ $1 -eq 0 ] ; then
+#    /bin/systemctl --no-reload disable %{name}.service > /dev/null 2>&1 || :
+#    /bin/systemctl stop %{name}.service > /dev/null 2>&1 || :
+#fi
+
+#Uncomment for SysV:
 if [ $1 -eq 0 ]; then
 	service %{name} stop >/dev/null || :
 	/sbin/chkconfig --del %{name} || :
@@ -132,6 +175,14 @@ fi
 exit 0
 
 %postun
+# Package upgrade, not uninstall
+#Uncomment for systemd:
+#/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+#if [ $1 -ge 1 ] ; then
+#    /bin/systemctl try-restart %{name}.service >/dev/null 2>&1 || :
+#fi
+
+#Uncomment for SysV:
 if [ "$1" -ge "1" ] ; then
 	/sbin/service %{name} condrestart >/dev/null 2>&1 || :
 fi
@@ -149,12 +200,14 @@ rm -rf %{buildroot}
 %doc db/README.schema db/schema.mysql
 %config(noreplace) %{_sysconfdir}/%{name}.conf
 %config(noreplace) %{_sysconfdir}/tmpfiles.d/%{name}.conf
+%config(noreplace) %{_sysconfdir}/sysconfig/%{name}
 %{_initrddir}/%{name}
 %{_sbindir}/*
 %{_mandir}/*/*
 %dir %attr(-,%{name},%{name}) %{_localstatedir}/spool/%{name}
 %dir %attr(-,%{name},mail) %{_localstatedir}/run/%{name}
 %dir %attr(-,%{name},%{name}) %{_sysconfdir}/%{name}
+#%attr(0644,root,root) %{_unitdir}/%{name}.service
 
 %files -n libopendmarc
 %defattr(-,root,root)
@@ -167,8 +220,11 @@ rm -rf %{buildroot}
 %{_libdir}/*.so
 
 %changelog
-* Wed Mar 04 2015 Steve Jenkins <steve@stevejenkins.com> 1.3.1-2
-- Split spec files into and SysV versions with same build numbers
+* Thu Mar 05 2015 Steve Jenkins <steve@stevejenkins.com> 1.3.1-2
+- Branched spec files into systemd and SysV versions
+- Added top comment for EL5 to bypass MD5 build errors
+- Added opendmarc.service file for systemd support
+- Added sysconfig file support for runtime options
 
 * Sat Feb 28 2015 Matt Domsch <mdomsch@fedoraproject.org> 1.3.1-1
 - upgrade to 1.3.1
