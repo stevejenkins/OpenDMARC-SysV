@@ -1,19 +1,34 @@
-Summary: DMARC milter and library
+# SystemV-compatible version
+
+Summary: A Domain-based Message Authentication, Reporting & Conformance (DMARC) milter and library
 Name: opendmarc
 Version: 1.3.1
-Release: 1
+Release: 2%{?dist}
 Group: System Environment/Daemons
 License: BSD and Sendmail
 URL: http://www.trusteddomain.org/opendmarc.html
 Source0: http://downloads.sourceforge.net/project/%{name}/%{name}-%{version}.tar.gz
 Requires: lib%{name} = %{version}-%{release}
 Requires (pre): shadow-utils
+
+# Uncomment for systemd version
+#Requires (post): systemd-units
+#Requires (preun): systemd-units
+#Requires (postun): systemd-units
+#Requires (post): systemd-sysv
+
+# Uncomment for SystemV version
 Requires (post): chkconfig
 Requires (preun): chkconfig, initscripts
 Requires (postun): initscripts
-BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+
+# Required for all versions
 BuildRequires: sendmail-devel, openssl-devel, libtool, pkgconfig
 BuildRequires: mysql-devel
+
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+
+# Patch0: %{name}.patchname.patch
 
 %description
 OpenDMARC (Domain-based Message Authentication, Reporting & Conformance)
@@ -44,6 +59,7 @@ required for developing applications against libopendmarc.
 
 %prep
 %setup -q
+#%patch0 -p1
 
 %build
 # Always use system libtool instead of opendmarc provided one to
@@ -151,6 +167,9 @@ rm -rf %{buildroot}
 %{_libdir}/*.so
 
 %changelog
+* Wed Mar 04 2015 Steve Jenkins <steve@stevejenkins.com> 1.3.1-2
+- Split spec files into and SysV versions with same build numbers
+
 * Sat Feb 28 2015 Matt Domsch <mdomsch@fedoraproject.org> 1.3.1-1
 - upgrade to 1.3.1
 
@@ -172,7 +191,7 @@ rm -rf %{buildroot}
 - set umask to 007
 - set UserID to opendmarc:mail
 
-* Mon Jan 28 2013 Steve Jenkins <steve@stevejenkins.com.com> 1.0.1
+* Mon Jan 28 2013 Steve Jenkins <steve@stevejenkins.com> 1.0.1
 - Accepted Fedora SPEC file management from Todd Lyons (thx, Todd!)
 - Fixed some default config file issues by using sed
 - Removed BETA references
