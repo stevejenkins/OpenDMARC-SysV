@@ -1,14 +1,8 @@
 OpenDMARC-SysV
 ===============
-This git repo contains:
+**NOTE: As of 1.3.1-5, the systemd and SystemV versions of this spec file have been combined, and this repo has been abandoned.**
 
-- **SPECS/opendmarc.spec** - SysV-compatible spec file for the OpenDMARC package I co-maintain in Fedora & EPEL (https://admin.fedoraproject.org/pkgdb/acls/name/opendmarc/)
-
-- **PATCHES** - patches for the spec file, as needed, depending on version
-
-**CONTRIBUTORS:** Please do pull requests in the "develop" branch only. The "master" branch is just for release versions. Thanks!
-
-For the systemd-compatible version of this repo, visit http://github.com/stevejenkins/OpenDMARC-Fedora/
+**All current activity for this project is in the OpenDMARC-Fedora repo at https://github.com/stevejenkins/OpenDMARC-Fedora**
 
 For official source code and documentation, please visit http://www.trusteddomain.org/opendmarc/
 
